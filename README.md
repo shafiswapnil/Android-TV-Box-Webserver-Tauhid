@@ -204,3 +204,98 @@ Expose your local server securely over HTTPS using `cloudflared`.
 
 * Map your application paths exactly as shown in the App Routing Map.
 * ⚠️ **Never commit your Cloudflare `.json` credentials to GitHub.**
+
+### Cloudflare Tunnel Setup for Android TV Box Web Server
+
+This section explains how to configure and run a Cloudflare Tunnel to expose your local web server to a domain.
+
+---
+
+#### 1. Authenticate Cloudflare Tunnel
+
+```bash
+cloudflared login
+```
+
+This will open a browser to log in to your Cloudflare account.
+
+---
+
+#### 2. Create a Tunnel
+
+```bash
+cloudflared tunnel create <TUNNEL_NAME>
+```
+
+This will create a tunnel and generate a credentials file.
+
+---
+
+#### 3. Configure Tunnel
+
+Create or edit the configuration file `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: <TUNNEL_NAME>
+credentials-file: /path/to/credentials.json
+
+ingress:
+  - hostname: your-domain.com
+    service: http://localhost:8080
+  - service: http_status:404
+```
+
+Replace placeholders with your own tunnel name and domain. **Do not share credentials files publicly.**
+
+---
+
+#### 4. Configure Online in Cloudflare Dashboard
+
+1. Log in to your [Cloudflare Dashboard](https://dash.cloudflare.com/).
+2. Go to **Zero Trust → Access → Tunnels**.
+3. Click your tunnel (`<TUNNEL_NAME>`).
+4. Ensure the **Hostname** matches your domain (`your-domain.com`) and points to your tunnel.
+5. Confirm DNS records are set to **CNAME** pointing to `*.cfargotunnel.com` as instructed.
+6. Save changes.
+
+This ensures your domain routes through Cloudflare to your local server.
+
+---
+
+#### 5. Run the Tunnel
+
+To run the tunnel manually:
+
+```bash
+cloudflared tunnel run <TUNNEL_NAME>
+```
+
+---
+
+#### 6. Auto-Start Tunnel and Services on Boot
+
+You can safely auto-start Cloudflare Tunnel along with other services using Termux boot scripts. **Avoid exposing sensitive info** like real IPs or credentials.
+
+Example sanitized boot script (`~/.termux/boot/start-sshd`):
+
+```bash
+#!/data/data/com.termux/files/usr/bin/sh
+
+# Start SSH
+sshd
+
+# Start PHP-FPM if not running
+pgrep php-fpm >/dev/null || php-fpm &
+
+# Start Apache
+apachectl start
+
+# Start MariaDB if not running
+pgrep mariadbd >/dev/null || mariadbd-safe &
+
+# Start Cloudflare Tunnel in background
+cloudflared tunnel run <TUNNEL_NAME> &
+```
+
+* Paths, tunnel names, and credentials are placeholders for security.
+* Do not upload real credentials or IPs to public repositories.
